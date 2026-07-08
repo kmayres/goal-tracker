@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Data Sheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#E7ECE1;
+    --paper-grid: rgba(30,42,34,0.06);
+    --card:#F3F1E6;
+    --card-border: rgba(30,42,34,0.14);
+    --ink:#1E2A22;
+    --ink-soft:#5B6B5F;
+    --ink-faint:#8B978E;
+    --rule: rgba(30,42,34,0.20);
+    --met:#3F6B4A;
+    --met-tint: rgba(63,107,74,0.12);
+    --notmet:#B5502F;
+    --notmet-tint: rgba(181,80,47,0.10);
+    --phase-tint: rgba(30,42,34,0.035);
+    --font-display: 'Fraunces', serif;
+    --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --radius: 3px;
+  }
+  * { box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background: var(--paper);
+    background-image:
+      linear-gradient(var(--paper-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  #app{
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 28px 16px 80px;
+  }
+  .masthead{
+    padding: 4px 4px 22px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 24px;
+  }
+  .eyebrow{
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  h1{
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: 34px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .sub{
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+  .card{
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card-head{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  h2{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 19px;
+    margin: 0;
+  }
+  h3{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 16px;
+    margin: 0;
+  }
+  .btn{
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: var(--radius);
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease;
+    white-space: nowrap;
+  }
+  .btn:hover{ background: var(--ink); color: var(--card); }
+  .btn-primary{ background: var(--ink); color: var(--card); }
+  .btn-primary:hover{ background: var(--ink-soft); color: var(--card); }
+  .btn-small{ padding: 5px 10px; font-size: 12px; }
+  .btn-danger{ border-color: var(--notmet); color: var(--notmet); }
+  .btn-danger:hover{ background: var(--notmet); color: #fff; }
+  .btn-ghost{ border-color: transparent; color: var(--ink-soft); padding: 5px 8px; }
+  .btn-ghost:hover{ background: var(--paper-grid); color: var(--ink); }
+
+  .hidden{ display: none !important; }
+
+  .inline-form{
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 14px;
+    background: rgba(255,255,255,0.35);
+  }
+  .field-row{
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .field{
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 140px;
+  }
+  label{
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  input[type=text], input[type=number], input[type=date], select{
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 8px 9px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--ink);
+  }
+  input:focus, select:focus, button:focus-visible{
+    outline: 2px solid var(--met);
+    outline-offset: 1px;
+  }
+
+  .goals-list{ list-style: none; margin: 0; padding: 0; }
+  .goal-row{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .goal-row:last-child{ border-bottom: none; }
+  .goal-row.archived{ opacity: 0.5; }
+  .goal-name{ font-weight: 600; font-size: 14.5px; }
+  .goal-def{ font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); }
+  .goal-row-actions{ display:flex; gap:6px; flex-shrink:0; }
+
+  .checkin-date-row{
+    display:flex;
+    align-items:center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .checkin-date-row .datelabel{
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .checkin-list{ margin-bottom: 14px; }
+  .checkin-item{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .checkin-item:last-child{ border-bottom: none; }
+  .checkin-goal-label{ font-size: 14.5px; font-weight: 500; }
+  .checkin-goal-def{ font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-soft); display:block; margin-top: 2px;}
+  .toggle-pair{ display:flex; border: 1px solid var(--ink); border-radius: var(--radius); overflow: hidden; flex-shrink:0; }
+  .toggle-btn{
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    padding: 9px 16px;
+    background: #fff;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .toggle-btn.yes.active{ background: var(--met); color: #fff; }
+  .toggle-btn.no.active{ background: var(--notmet); color: #fff; }
+  .toggle-btn + .toggle-btn{ border-left: 1px solid var(--ink); }
+
+  .save-confirm{
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--met);
+    margin-top: 10px;
+  }
+  .empty-note{
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    padding: 10px 0;
+  }
+
+  .goal-block{ margin-bottom: 28px; }
+  .goal-block:last-child{ margin-bottom: 0; }
+  .goal-block-head{
+    display:flex;
+    align-items:baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .graph-scroll{
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    background: #fff;
+  }
+  .phase-summary{
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    margin-top: 8px;
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .phase-summary .seg{ white-space: nowrap; }
+  .phase-summary .seg b{ color: var(--ink); }
+
+  .legend{
+    display:flex;
+    gap: 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin: 6px 0 18px;
+    flex-wrap: wrap;
+  }
+  .legend span{ display:inline-flex; align-items:center; gap: 6px; }
+  .dot{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .dot.met{ background: var(--met); }
+  .dot.notmet{ background: #fff; border: 2px solid var(--notmet); width:7px; height:7px; }
+
+  footer.app-footer{
+    text-align: center;
+    margin-top: 30px;
+  }
+  .reset-link{
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .status-msg{
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    padding: 30px 4px;
+    text-align: center;
+  }
+
+  @media (max-width: 480px){
+    h1{ font-size: 27px; }
+    .card{ padding: 16px; }
+    .toggle-btn{ padding: 9px 13px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="status-msg" id="loadingMsg">Loading your data sheet…</div>
+</div>
+
+<script>
+(function(){
+
+  var STORAGE_KEY = 'tracker-data';
+  var MAX_GOALS = 10;
+  var state = null; // { goals: [], entries: {}, phases: {} }
+  var appEl = document.getElementById('app');
+
+  // ---------- date helpers ----------
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  }
+  function pad(n){ return n < 10 ? '0'+n : ''+n; }
+  function parseISO(iso){
+    var parts = iso.split('-');
+    return new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
+  }
+  function formatShort(iso){
+    var d = parseISO(iso);
+    return d.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+  }
+  function formatFull(iso){
+    var d = parseISO(iso);
+    return d.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+  }
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+
+  // ---------- storage ----------
+  async function loadState(){
+    try{
+      var res = await window.storage.get(STORAGE_KEY, false);
+      if(res && res.value){
+        return JSON.parse(res.value);
+      }
+      return { goals: [], entries: {}, phases: {} };
+    }catch(e){
+      return { goals: [], entries: {}, phases: {} };
+    }
+  }
+  async function saveState(){
+    try{
+      await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
+    }catch(e){
+      console.error('Save failed', e);
+    }
+  }
+
+  // ---------- data helpers ----------
+  function activeGoals(){ return state.goals.filter(function(g){ return !g.archived; }); }
+  function goalById(id){ return state.goals.find(function(g){ return g.id === id; }); }
+  function goalLabel(g){
+    var dir = g.direction === 'atleast' ? 'at least' : 'no more than';
+    return g.name + ' \u2014 ' + dir + ' ' + g.threshold + (g.unit ? (' ' + g.unit) : '') + '/day';
+  }
+  function goalPhases(goalId){
+    var list = state.phases[goalId] || [];
+    return list.slice().sort(function(a,b){ return a.startDate < b.startDate ? -1 : 1; });
+  }
+  function sessionsForGoal(goalId){
+    var dates = Object.keys(state.entries).filter(function(d){
+      return state.entries[d] && Object.prototype.hasOwnProperty.call(state.entries[d], goalId);
+    }).sort();
+    return dates.map(function(d){ return { date: d, met: !!state.entries[d][goalId] }; });
+  }
+  function phaseForDate(goalId, dateISO){
+    var phases = goalPhases(goalId);
+    var current = null;
+    for(var i=0;i<phases.length;i++){
+      if(phases[i].startDate <= dateISO) current = phases[i];
+      else break;
+    }
+    return current;
+  }
+
+  // ---------- rendering ----------
+  function render(){
+    appEl.innerHTML = '';
+    appEl.appendChild(renderHeader());
+    appEl.appendChild(renderGoalsCard());
+    appEl.appendChild(renderCheckinCard());
+    appEl.appendChild(renderProgressCard());
+    appEl.appendChild(renderFooter());
+  }
+
+  function el(tag, cls, html){
+    var e = document.createElement(tag);
+    if(cls) e.className = cls;
+    if(html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  function renderHeader(){
+    var wrap = el('div','masthead');
+    wrap.innerHTML =
+      '<div class="eyebrow">Self-monitoring log</div>' +
+      '<h1>Daily Data Sheet</h1>' +
+      '<p class="sub">Log tonight\u2019s goals, then watch the trend \u2014 with phase changes marked, just like a single-case design graph.</p>';
+    return wrap;
+  }
+
+  // ---- Goals card ----
+  var showAddGoalForm = false;
+
+  function renderGoalsCard(){
+    var card = el('div','card');
+    var head = el('div','card-head');
+    head.appendChild(el('h2', null, 'Goals'));
+    var addBtn = el('button','btn btn-primary', '+ Add goal');
+    addBtn.onclick = function(){ showAddGoalForm = !showAddGoalForm; render(); };
+    if(activeGoals().length >= MAX_GOALS){
+      addBtn.disabled = true;
+      addBtn.title = 'Maximum of ' + MAX_GOALS + ' active goals';
+      addBtn.style.opacity = 0.5;
+    }
+    head.appendChild(addBtn);
+    card.appendChild(head);
+
+    if(showAddGoalForm){
+      card.appendChild(renderAddGoalForm());
+    }
+
+    if(state.goals.length === 0){
+      card.appendChild(el('div','empty-note','No goals yet. Add one above \u2014 e.g. "Exercise, at least 20 min/day" or "Beers, no more than 2/day."'));
+      return card;
+    }
+
+    var list = el('ul','goals-list');
+    state.goals.forEach(function(g){
+      var row = el('li','goal-row' + (g.archived ? ' archived' : ''));
+      var left = el('div', null,
+        '<div class="goal-name">' + escapeHtml(g.name) + (g.archived ? ' <span style="font-family:var(--font-mono);font-size:11px;">(archived)</span>' : '') + '</div>' +
+        '<div class="goal-def">' + escapeHtml((g.direction === 'atleast' ? 'at least ' : 'no more than ') + g.threshold + (g.unit ? ' ' + g.unit : '') + '/day') + '</div>'
+      );
+      row.appendChild(left);
+      var actions = el('div','goal-row-actions');
+      var toggleBtn = el('button','btn btn-small', g.archived ? 'Reactivate' : 'Archive');
+      toggleBtn.onclick = function(){
+        g.archived = !g.archived;
+        saveState(); render();
+      };
+      actions.appendChild(toggleBtn);
+      row.appendChild(actions);
+      list.appendChild(row);
+    });
+    card.appendChild(list);
+    return card;
+  }
+
+  function renderAddGoalForm(){
+    var form = el('div','inline-form');
+    form.innerHTML =
+      '<div class="field-row">' +
+        '<div class="field" style="flex:2 1 200px;"><label>Goal name</label><input type="text" id="ngName" placeholder="e.g. Exercise"></div>' +
+        '<div class="field"><label>Direction</label>' +
+          '<select id="ngDir">' +
+            '<option value="atleast">At least</option>' +
+            '<option value="atmost">No more than</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="field" style="flex:0 1 90px;"><label>Amount</label><input type="number" id="ngThresh" placeholder="20" min="0" step="any"></div>' +
+        '<div class="field" style="flex:0 1 110px;"><label>Unit (optional)</label><input type="text" id="ngUnit" placeholder="min, beers"></div>' +
+      '</div>';
+    var btnRow = el('div', null);
+    var saveBtn = el('button','btn btn-primary btn-small', 'Add goal');
+    var cancelBtn = el('button','btn btn-ghost btn-small', 'Cancel');
+    cancelBtn.style.marginLeft = '8px';
+    saveBtn.onclick = function(){
+      var name = document.getElementById('ngName').value.trim();
+      var dir = document.getElementById('ngDir').value;
+      var thresh = document.getElementById('ngThresh').value.trim();
+      var unit = document.getElementById('ngUnit').value.trim();
+      if(!name || thresh === ''){
+        alert('Please enter a goal name and an amount.');
+        return;
+      }
+      var g = { id: uid(), name: name, direction: dir, threshold: thresh, unit: unit, archived: false, createdDate: todayISO() };
+      state.goals.push(g);
+      showAddGoalForm = false;
+      saveState(); render();
+    };
+    cancelBtn.onclick = function(){ showAddGoalForm = false; render(); };
+    btnRow.appendChild(saveBtn);
+    btnRow.appendChild(cancelBtn);
+    form.appendChild(btnRow);
+    return form;
+  }
+
+  // ---- Check-in card ----
+  var checkinDate = todayISO();
+  var checkinDraft = {}; // goalId -> true/false/undefined for the current checkinDate
+  var savedFlashDate = null;
+
+  function loadDraftForDate(){
+    checkinDraft = {};
+    var existing = state.entries[checkinDate] || {};
+    activeGoals().forEach(function(g){
+      if(Object.prototype.hasOwnProperty.call(existing, g.id)){
+        checkinDraft[g.id] = existing[g.id];
+      }
+    });
+  }
+  loadDraftForDate();
+
+  function renderCheckinCard(){
+    var card = el('div','card');
+    var head = el('div','card-head');
+    head.appendChild(el('h2', null, 'Tonight\u2019s entry'));
+    card.appendChild(head);
+
+    var dateRow = el('div','checkin-date-row');
+    dateRow.appendChild(el('span','datelabel','Logging for:'));
+    var dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.value = checkinDate;
+    dateInput.max = todayISO();
+    dateInput.onchange = function(){
+      checkinDate = dateInput.value || todayISO();
+      loadDraftForDate();
+      savedFlashDate = null;
+      render();
+    };
+    dateRow.appendChild(dateInput);
+    dateRow.appendChild(el('span','datelabel', formatFull(checkinDate)));
+    card.appendChild(dateRow);
+
+    var goals = activeGoals();
+    if(goals.length === 0){
+      card.appendChild(el('div','empty-note','Add a goal above to start logging.'));
+      return card;
+    }
+
+    var list = el('div','checkin-list');
+    goals.forEach(function(g){
+      var item = el('div','checkin-item');
+      var left = el('div', null,
+        '<span class="checkin-goal-label">' + escapeHtml(g.name) + '</span>' +
+        '<span class="checkin-goal-def">' + escapeHtml((g.direction==='atleast'?'at least ':'no more than ') + g.threshold + (g.unit? ' '+g.unit:'')) + '</span>'
+      );
+      item.appendChild(left);
+      var pair = el('div','toggle-pair');
+      var yesBtn = el('button','toggle-btn yes' + (checkinDraft[g.id]===true ? ' active':''), 'YES');
+      var noBtn = el('button','toggle-btn no' + (checkinDraft[g.id]===false ? ' active':''), 'NO');
+      yesBtn.onclick = function(){ checkinDraft[g.id] = true; savedFlashDate = null; render(); };
+      noBtn.onclick = function(){ checkinDraft[g.id] = false; savedFlashDate = null; render(); };
+      pair.appendChild(yesBtn);
+      pair.appendChild(noBtn);
+      item.appendChild(pair);
+      list.appendChild(item);
+    });
+    card.appendChild(list);
+
+    var saveBtn = el('button','btn btn-primary', 'Save entry');
+    saveBtn.onclick = function(){
+      var anySet = Object.keys(checkinDraft).length > 0;
+      if(!anySet){ alert('Mark at least one goal Yes or No before saving.'); return; }
+      if(!state.entries[checkinDate]) state.entries[checkinDate] = {};
+      goals.forEach(function(g){
+        if(Object.prototype.hasOwnProperty.call(checkinDraft, g.id)){
+          state.entries[checkinDate][g.id] = checkinDraft[g.id];
+          // ensure a baseline phase exists for this goal
+          if(!state.phases[g.id] || state.phases[g.id].length === 0){
+            state.phases[g.id] = [{ id: uid(), label: 'Baseline', startDate: checkinDate }];
+          }
+        }
+      });
+      saveState();
+      savedFlashDate = checkinDate;
+      render();
+    };
+    card.appendChild(saveBtn);
+
+    if(savedFlashDate === checkinDate){
+      card.appendChild(el('div','save-confirm', 'Saved \u2014 ' + formatFull(checkinDate) + '.'));
+    }
+    return card;
+  }
+
+  // ---- Progress card ----
+  var addPhaseOpenFor = null;
+
+  function renderProgressCard(){
+    var card = el('div','card');
+    card.appendChild(el('h2', null, 'Progress'));
+
+    var legend = el('div','legend');
+    legend.innerHTML =
+      '<span><span class="dot met"></span> Goal met</span>' +
+      '<span><span class="dot notmet"></span> Not met</span>' +
+      '<span>&#8211; &#8211; vertical line = phase change</span>';
+    card.appendChild(legend);
+
+    var goalsToShow = state.goals; // show archived too, greyed via label only
+    if(goalsToShow.length === 0){
+      card.appendChild(el('div','empty-note','Your graphs will appear here once you\u2019ve added a goal and logged a night.'));
+      return card;
+    }
+
+    goalsToShow.forEach(function(g){
+      var block = el('div','goal-block');
+      var head = el('div','goal-block-head');
+      head.appendChild(el('h3', null, escapeHtml(g.name) + (g.archived ? ' (archived)' : '')));
+      var phaseBtn = el('button','btn btn-small', '+ Phase change');
+      phaseBtn.onclick = function(){
+        addPhaseOpenFor = (addPhaseOpenFor === g.id) ? null : g.id;
+        render();
+      };
+      head.appendChild(phaseBtn);
+      block.appendChild(head);
+
+      var defLine = el('div','goal-def', escapeHtml((g.direction==='atleast'?'at least ':'no more than ') + g.threshold + (g.unit?' '+g.unit:'') + '/day'));
+      defLine.style.marginBottom = '8px';
+      block.appendChild(defLine);
+
+      if(addPhaseOpenFor === g.id){
+        block.appendChild(renderAddPhaseForm(g));
+      }
+
+      var sessions = sessionsForGoal(g.id);
+      if(sessions.length === 0){
+        block.appendChild(el('div','empty-note','No entries logged for this goal yet.'));
+        card.appendChild(block);
+        return;
+      }
+
+      var scrollWrap = el('div','graph-scroll');
+      scrollWrap.appendChild(buildGraphSVG(g, sessions));
+      block.appendChild(scrollWrap);
+
+      appendPhaseSummary(block, g, sessions);
+      card.appendChild(block);
+    });
+
+    return card;
+  }
+
+  function appendPhaseSummary(block, g, sessions){
+    var phases = goalPhases(g.id);
+    if(phases.length === 0 || sessions.length === 0) return;
+    var summary = el('div','phase-summary');
+    phases.forEach(function(ph, i){
+      var nextStart = phases[i+1] ? phases[i+1].startDate : null;
+      var inPhase = sessions.filter(function(s){
+        return s.date >= ph.startDate && (nextStart === null || s.date < nextStart);
+      });
+      if(inPhase.length === 0) return;
+      var metCount = inPhase.filter(function(s){ return s.met; }).length;
+      var pct = Math.round((metCount / inPhase.length) * 100);
+      var seg = el('span','seg');
+      seg.innerHTML = escapeHtml(ph.label) + ': <b>' + pct + '%</b> (' + metCount + '/' + inPhase.length + ')';
+      summary.appendChild(seg);
+    });
+    block.appendChild(summary);
+  }
+
+  function renderAddPhaseForm(g){
+    var form = el('div','inline-form');
+    var existingPhases = goalPhases(g.id);
+    var minDate = existingPhases.length ? existingPhases[existingPhases.length-1].startDate : g.createdDate;
+    form.innerHTML =
+      '<div class="field-row">' +
+        '<div class="field" style="flex:2 1 180px;"><label>Phase label</label><input type="text" id="phLabel" placeholder="e.g. Nightly reminder"></div>' +
+        '<div class="field" style="flex:1 1 140px;"><label>Starts on</label><input type="date" id="phDate" value="' + todayISO() + '" min="' + minDate + '" max="' + todayISO() + '"></div>' +
+      '</div>';
+    var btnRow = el('div', null);
+    var saveBtn = el('button','btn btn-primary btn-small','Add phase');
+    var cancelBtn = el('button','btn btn-ghost btn-small','Cancel');
+    cancelBtn.style.marginLeft = '8px';
+    saveBtn.onclick = function(){
+      var label = document.getElementById('phLabel').value.trim();
+      var date = document.getElementById('phDate').value;
+      if(!label || !date){ alert('Enter a label and a start date.'); return; }
+      if(!state.phases[g.id]) state.phases[g.id] = [];
+      state.phases[g.id].push({ id: uid(), label: label, startDate: date });
+      addPhaseOpenFor = null;
+      saveState(); render();
+    };
+    cancelBtn.onclick = function(){ addPhaseOpenFor = null; render(); };
+    btnRow.appendChild(saveBtn);
+    btnRow.appendChild(cancelBtn);
+    form.appendChild(btnRow);
+    return form;
+  }
+
+  // ---------- SVG graph ----------
+  function buildGraphSVG(g, sessions){
+    var padL = 40, padR = 16, padTop = 34, padBottom = 32;
+    var stepX = Math.max(30, Math.min(52, 900 / Math.max(sessions.length,1)));
+    var innerH = 130;
+    var width = padL + padR + stepX * Math.max(sessions.length - 1, 0) + 20;
+    width = Math.max(width, 260);
+    var height = padTop + padBottom + innerH;
+    var yMet = padTop;
+    var yNot = padTop + innerH;
+
+    var svgns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(svgns,'svg');
+    svg.setAttribute('viewBox','0 0 ' + width + ' ' + height);
+    svg.style.display = 'block';
+    svg.style.minWidth = width + 'px';
+    svg.style.width = '100%';
+    svg.style.height = 'auto';
+    svg.setAttribute('font-family', "'IBM Plex Mono', monospace");
+
+    function line(x1,y1,x2,y2,stroke,dash){
+      var l = document.createElementNS(svgns,'line');
+      l.setAttribute('x1',x1); l.setAttribute('y1',y1);
+      l.setAttribute('x2',x2); l.setAttribute('y2',y2);
+      l.setAttribute('stroke', stroke);
+      l.setAttribute('stroke-width','1');
+      if(dash) l.setAttribute('stroke-dasharray', dash);
+      return l;
+    }
+    function text(x,y,str,size,anchor,color,weight){
+      var t = document.createElementNS(svgns,'text');
+      t.setAttribute('x',x); t.setAttribute('y',y);
+      t.setAttribute('font-size', size || 10);
+      t.setAttribute('text-anchor', anchor || 'start');
+      t.setAttribute('fill', color || '#5B6B5F');
+      if(weight) t.setAttribute('font-weight', weight);
+      t.textContent = str;
+      return t;
+    }
+
+    // gridlines
+    svg.appendChild(line(padL, yMet, width - padR, yMet, 'rgba(30,42,34,0.15)'));
+    svg.appendChild(line(padL, yNot, width - padR, yNot, 'rgba(30,42,34,0.15)'));
+    svg.appendChild(text(padL - 8, yMet + 3, 'Met', 9.5, 'end', '#3F6B4A', '600'));
+    svg.appendChild(text(padL - 8, yNot + 3, 'Not met', 9.5, 'end', '#B5502F', '600'));
+
+    // x positions
+    var xs = sessions.map(function(s,i){ return padL + i * stepX; });
+
+    // phase backgrounds + dividers + labels
+    var phases = goalPhases(g.id);
+    var segments = [];
+    phases.forEach(function(ph, i){
+      var nextStart = phases[i+1] ? phases[i+1].startDate : null;
+      var idxs = [];
+      sessions.forEach(function(s, si){
+        if(s.date >= ph.startDate && (nextStart === null || s.date < nextStart)) idxs.push(si);
+      });
+      if(idxs.length) segments.push({ phase: ph, idxs: idxs });
+    });
+
+    segments.forEach(function(seg, i){
+      var x1 = xs[seg.idxs[0]] - stepX/2;
+      var x2 = xs[seg.idxs[seg.idxs.length-1]] + stepX/2;
+      if(i % 2 === 1){
+        var rect = document.createElementNS(svgns,'rect');
+        rect.setAttribute('x', Math.max(x1, padL));
+        rect.setAttribute('y', padTop - 18);
+        rect.setAttribute('width', Math.min(x2,width-padR) - Math.max(x1,padL));
+        rect.setAttribute('height', innerH + 18);
+        rect.setAttribute('fill', 'rgba(30,42,34,0.035)');
+        svg.appendChild(rect);
+      }
+      // divider line before this segment (except the very first)
+      if(i > 0){
+        svg.appendChild(line(x1, padTop - 18, x1, yNot, 'rgba(30,42,34,0.45)', '4,3'));
+      }
+      var midX = (Math.max(x1,padL) + Math.min(x2,width-padR)) / 2;
+      var label = seg.phase.label.length > 16 ? seg.phase.label.slice(0,15)+'\u2026' : seg.phase.label;
+      var lbl = text(midX, padTop - 22, label.toUpperCase(), 9, 'middle', '#1E2A22', '600');
+      lbl.setAttribute('letter-spacing','0.04em');
+      svg.appendChild(lbl);
+    });
+
+    // connecting lines within each phase segment
+    segments.forEach(function(seg){
+      for(var k=0;k<seg.idxs.length-1;k++){
+        var i1 = seg.idxs[k], i2 = seg.idxs[k+1];
+        var y1 = sessions[i1].met ? yMet : yNot;
+        var y2 = sessions[i2].met ? yMet : yNot;
+        svg.appendChild(line(xs[i1], y1, xs[i2], y2, 'rgba(30,42,34,0.55)'));
+      }
+    });
+
+    // markers
+    sessions.forEach(function(s, i){
+      var cy = s.met ? yMet : yNot;
+      var c = document.createElementNS(svgns,'circle');
+      c.setAttribute('cx', xs[i]);
+      c.setAttribute('cy', cy);
+      c.setAttribute('r', s.met ? 5 : 4.5);
+      if(s.met){
+        c.setAttribute('fill', '#3F6B4A');
+        c.setAttribute('stroke','none');
+      } else {
+        c.setAttribute('fill', '#fff');
+        c.setAttribute('stroke', '#B5502F');
+        c.setAttribute('stroke-width', '2');
+      }
+      svg.appendChild(c);
+
+      // date label every few points (avoid crowding)
+      var showEvery = sessions.length > 20 ? 4 : (sessions.length > 10 ? 2 : 1);
+      if(i % showEvery === 0 || i === sessions.length - 1){
+        svg.appendChild(text(xs[i], yNot + 18, formatShort(s.date), 8.5, 'middle', '#8B978E'));
+      }
+    });
+
+    return svg;
+  }
+
+  function renderFooter(){
+    var f = el('footer','app-footer');
+    var btn = el('button','reset-link','Reset all data');
+    btn.onclick = async function(){
+      if(confirm('This will permanently erase all goals, entries, and phases. Continue?')){
+        state = { goals: [], entries: {}, phases: {} };
+        await saveState();
+        render();
+      }
+    };
+    f.appendChild(btn);
+    return f;
+  }
+
+  function escapeHtml(str){
+    var d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  // ---------- boot ----------
+  (async function init(){
+    state = await loadState();
+    render();
+  })();
+
+})();
+</script>
+</body>
+</html>
