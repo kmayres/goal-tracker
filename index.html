@@ -457,6 +457,7 @@
           if(res.data && res.data.session){
             session = res.data.session;
             state = await loadState();
+            loadDraftForDate();
           } else {
             authNotice = 'Check your email for a confirmation link, then log in below.';
             authMode = 'login';
@@ -466,6 +467,7 @@
           if(res2.error) throw res2.error;
           session = res2.data.session;
           state = await loadState();
+          loadDraftForDate();
         }
       }catch(e){
         authError = e.message || 'Something went wrong. Please try again.';
@@ -496,7 +498,7 @@
   var authError = null;
   var authNotice = null;
 
-
+  function renderHeader(){
     var wrap = el('div','masthead');
     wrap.innerHTML =
       '<div class="eyebrow">Self-monitoring log</div>' +
@@ -607,7 +609,6 @@
       }
     });
   }
-  loadDraftForDate();
 
   function renderCheckinCard(){
     var card = el('div','card');
@@ -954,13 +955,14 @@
     session = sres.data.session;
     if(session){
       state = await loadState();
+      loadDraftForDate();
     }
     render();
 
     sb.auth.onAuthStateChange(function(event, newSession){
       session = newSession;
       if(session && !state){
-        loadState().then(function(s){ state = s; render(); });
+        loadState().then(function(s){ state = s; loadDraftForDate(); render(); });
       } else if(!session){
         state = null;
         render();
