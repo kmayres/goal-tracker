@@ -376,11 +376,23 @@
     var list = state.phases[goalId] || [];
     return list.slice().sort(function(a,b){ return a.startDate < b.startDate ? -1 : 1; });
   }
+  function isMet(goal, rawValue){
+    if(goal.trackingType === 'amount'){
+      var num = Number(rawValue);
+      if(rawValue === undefined || rawValue === null || isNaN(num)) return false;
+      return goal.direction === 'atleast' ? num >= Number(goal.threshold) : num <= Number(goal.threshold);
+    }
+    return !!rawValue;
+  }
   function sessionsForGoal(goalId){
+    var goal = goalById(goalId);
     var dates = Object.keys(state.entries).filter(function(d){
       return state.entries[d] && Object.prototype.hasOwnProperty.call(state.entries[d], goalId);
     }).sort();
-    return dates.map(function(d){ return { date: d, met: !!state.entries[d][goalId] }; });
+    return dates.map(function(d){
+      var raw = state.entries[d][goalId];
+      return { date: d, raw: raw, met: isMet(goal, raw) };
+    });
   }
   function phaseForDate(goalId, dateISO){
     var phases = goalPhases(goalId);
@@ -503,7 +515,14 @@
     wrap.innerHTML =
       '<div class="eyebrow">Self-monitoring log</div>' +
       '<h1>Daily Data Sheet</h1>' +
-      '<p class="sub">Log tonight\u2019s goals, then watch the trend \u2014 with phase changes marked, just like a single-case design graph.</p>';
+      '<p class="sub">Log tonight\u2019s goals, then watch the trend \u2014 with phase changes marked, just like a single-case design graph.</p>' +
+      '<nav style="margin-top:10px;font-family:var(--font-mono);font-size:11px;letter-spacing:0.04em;">' +
+        '<a href="#goalsCard" style="color:var(--ink-soft);text-decoration:underline;">GOALS</a>' +
+        '<span style="color:var(--ink-faint);"> &middot; </span>' +
+        '<a href="#checkinCard" style="color:var(--ink-soft);text-decoration:underline;">TONIGHT\u2019S ENTRY</a>' +
+        '<span style="color:var(--ink-faint);"> &middot; </span>' +
+        '<a href="#progressCard" style="color:var(--ink-soft);text-decoration:underline;">PROGRESS / GRAPHS</a>' +
+      '</nav>';
     return wrap;
   }
 
@@ -512,6 +531,7 @@
 
   function renderGoalsCard(){
     var card = el('div','card');
+    card.id = 'goalsCard';
     var head = el('div','card-head');
     head.appendChild(el('h2', null, 'Goals'));
     var addBtn = el('button','btn btn-primary', '+ Add goal');
@@ -568,6 +588,14 @@
         '</div>' +
         '<div class="field" style="flex:0 1 90px;"><label>Amount</label><input type="number" id="ngThresh" placeholder="20" min="0" step="any"></div>' +
         '<div class="field" style="flex:0 1 110px;"><label>Unit (optional)</label><input type="text" id="ngUnit" placeholder="min, beers"></div>' +
+      '</div>' +
+      '<div class="field-row">' +
+        '<div class="field" style="flex:1 1 220px;"><label>How you\u2019ll log it each night</label>' +
+          '<select id="ngType">' +
+            '<option value="binary">Yes / No \u2014 did I meet it or not</option>' +
+            '<option value="amount">Log an amount \u2014 e.g. minutes, drinks</option>' +
+          '</select>' +
+        '</div>' +
       '</div>';
     var btnRow = el('div', null);
     var saveBtn = el('button','btn btn-primary btn-small', 'Add goal');
@@ -578,11 +606,12 @@
       var dir = document.getElementById('ngDir').value;
       var thresh = document.getElementById('ngThresh').value.trim();
       var unit = document.getElementById('ngUnit').value.trim();
+      var trackingType = document.getElementById('ngType').value;
       if(!name || thresh === ''){
         alert('Please enter a goal name and an amount.');
         return;
       }
-      var g = { id: uid(), name: name, direction: dir, threshold: thresh, unit: unit, archived: false, createdDate: todayISO() };
+      var g = { id: uid(), name: name, direction: dir, threshold: thresh, unit: unit, trackingType: trackingType, archived: false, createdDate: todayISO() };
       state.goals.push(g);
       showAddGoalForm = false;
       saveState(); render();
@@ -612,6 +641,7 @@
 
   function renderCheckinCard(){
     var card = el('div','card');
+    card.id = 'checkinCard';
     var head = el('div','card-head');
     head.appendChild(el('h2', null, 'Tonight\u2019s entry'));
     card.appendChild(head);
@@ -646,14 +676,38 @@
         '<span class="checkin-goal-def">' + escapeHtml((g.direction==='atleast'?'at least ':'no more than ') + g.threshold + (g.unit? ' '+g.unit:'')) + '</span>'
       );
       item.appendChild(left);
-      var pair = el('div','toggle-pair');
-      var yesBtn = el('button','toggle-btn yes' + (checkinDraft[g.id]===true ? ' active':''), 'YES');
-      var noBtn = el('button','toggle-btn no' + (checkinDraft[g.id]===false ? ' active':''), 'NO');
-      yesBtn.onclick = function(){ checkinDraft[g.id] = true; savedFlashDate = null; render(); };
-      noBtn.onclick = function(){ checkinDraft[g.id] = false; savedFlashDate = null; render(); };
-      pair.appendChild(yesBtn);
-      pair.appendChild(noBtn);
-      item.appendChild(pair);
+
+      if(g.trackingType === 'amount'){
+        var amtWrap = el('div', null);
+        amtWrap.style.display = 'flex';
+        amtWrap.style.alignItems = 'center';
+        amtWrap.style.gap = '6px';
+        var amtInput = document.createElement('input');
+        amtInput.type = 'number';
+        amtInput.step = 'any';
+        amtInput.placeholder = '0';
+        amtInput.style.width = '90px';
+        amtInput.style.textAlign = 'right';
+        if(Object.prototype.hasOwnProperty.call(checkinDraft, g.id)) amtInput.value = checkinDraft[g.id];
+        amtInput.oninput = function(){
+          var v = amtInput.value;
+          savedFlashDate = null;
+          if(v === ''){ delete checkinDraft[g.id]; }
+          else { checkinDraft[g.id] = Number(v); }
+        };
+        amtWrap.appendChild(amtInput);
+        if(g.unit) amtWrap.appendChild(el('span','goal-def', escapeHtml(g.unit)));
+        item.appendChild(amtWrap);
+      } else {
+        var pair = el('div','toggle-pair');
+        var yesBtn = el('button','toggle-btn yes' + (checkinDraft[g.id]===true ? ' active':''), 'YES');
+        var noBtn = el('button','toggle-btn no' + (checkinDraft[g.id]===false ? ' active':''), 'NO');
+        yesBtn.onclick = function(){ checkinDraft[g.id] = true; savedFlashDate = null; render(); };
+        noBtn.onclick = function(){ checkinDraft[g.id] = false; savedFlashDate = null; render(); };
+        pair.appendChild(yesBtn);
+        pair.appendChild(noBtn);
+        item.appendChild(pair);
+      }
       list.appendChild(item);
     });
     card.appendChild(list);
@@ -661,7 +715,7 @@
     var saveBtn = el('button','btn btn-primary', 'Save entry');
     saveBtn.onclick = async function(){
       var anySet = Object.keys(checkinDraft).length > 0;
-      if(!anySet){ alert('Mark at least one goal Yes or No before saving.'); return; }
+      if(!anySet){ alert('Log at least one goal before saving.'); return; }
       if(!state.entries[checkinDate]) state.entries[checkinDate] = {};
       goals.forEach(function(g){
         if(Object.prototype.hasOwnProperty.call(checkinDraft, g.id)){
@@ -697,6 +751,7 @@
 
   function renderProgressCard(){
     var card = el('div','card');
+    card.id = 'progressCard';
     card.appendChild(el('h2', null, 'Progress'));
 
     var legend = el('div','legend');
@@ -799,15 +854,29 @@
   }
 
   // ---------- SVG graph ----------
+  function niceCeil(v){
+    if(v <= 5) return Math.ceil(v) || 1;
+    var mag = Math.pow(10, Math.floor(Math.log(v) / Math.LN10));
+    var norm = v / mag;
+    var niceNorm = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+    return niceNorm * mag;
+  }
+
+  function formatValue(n){
+    if(Math.round(n) === n) return String(n);
+    return String(Math.round(n * 10) / 10);
+  }
+
   function buildGraphSVG(g, sessions){
-    var padL = 40, padR = 16, padTop = 34, padBottom = 32;
+    var isAmount = g.trackingType === 'amount';
+    var padL = 44, padR = 16, padTop = 34, padBottom = 32;
     var stepX = Math.max(30, Math.min(52, 900 / Math.max(sessions.length,1)));
     var innerH = 130;
     var width = padL + padR + stepX * Math.max(sessions.length - 1, 0) + 20;
     width = Math.max(width, 260);
     var height = padTop + padBottom + innerH;
-    var yMet = padTop;
-    var yNot = padTop + innerH;
+    var yTop = padTop;
+    var yBottom = padTop + innerH;
 
     var svgns = 'http://www.w3.org/2000/svg';
     var svg = document.createElementNS(svgns,'svg');
@@ -838,11 +907,35 @@
       return t;
     }
 
-    // gridlines
-    svg.appendChild(line(padL, yMet, width - padR, yMet, 'rgba(30,42,34,0.15)'));
-    svg.appendChild(line(padL, yNot, width - padR, yNot, 'rgba(30,42,34,0.15)'));
-    svg.appendChild(text(padL - 8, yMet + 3, 'Met', 9.5, 'end', '#3F6B4A', '600'));
-    svg.appendChild(text(padL - 8, yNot + 3, 'Not met', 9.5, 'end', '#B5502F', '600'));
+    var threshNum = Number(g.threshold) || 0;
+    var axisMax = 1;
+    var yFor;
+
+    if(isAmount){
+      var rawValues = sessions.map(function(s){ var n = Number(s.raw); return isNaN(n) ? 0 : n; });
+      var maxVal = Math.max.apply(null, rawValues.concat([threshNum, 0]));
+      axisMax = niceCeil(maxVal * 1.2 || threshNum || 1);
+      yFor = function(v){
+        var clamped = Math.max(0, Math.min(axisMax, v));
+        return yBottom - (clamped / axisMax) * innerH;
+      };
+      // gridlines: 0, max
+      svg.appendChild(line(padL, yBottom, width - padR, yBottom, 'rgba(30,42,34,0.15)'));
+      svg.appendChild(line(padL, yTop, width - padR, yTop, 'rgba(30,42,34,0.15)'));
+      svg.appendChild(text(padL - 8, yBottom + 3, '0', 9.5, 'end', '#5B6B5F', '600'));
+      svg.appendChild(text(padL - 8, yTop + 3, formatValue(axisMax), 9.5, 'end', '#5B6B5F', '600'));
+      // goal/criterion line
+      var goalY = yFor(threshNum);
+      svg.appendChild(line(padL, goalY, width - padR, goalY, 'rgba(63,107,74,0.55)', '3,3'));
+      var goalLbl = (g.direction === 'atleast' ? '\u2265 ' : '\u2264 ') + formatValue(threshNum) + (g.unit ? ' '+g.unit : '');
+      svg.appendChild(text(width - padR, goalY - 4, goalLbl, 9, 'end', '#3F6B4A', '600'));
+    } else {
+      yFor = function(met){ return met ? yTop : yBottom; };
+      svg.appendChild(line(padL, yTop, width - padR, yTop, 'rgba(30,42,34,0.15)'));
+      svg.appendChild(line(padL, yBottom, width - padR, yBottom, 'rgba(30,42,34,0.15)'));
+      svg.appendChild(text(padL - 8, yTop + 3, 'Met', 9.5, 'end', '#3F6B4A', '600'));
+      svg.appendChild(text(padL - 8, yBottom + 3, 'Not met', 9.5, 'end', '#B5502F', '600'));
+    }
 
     // x positions
     var xs = sessions.map(function(s,i){ return padL + i * stepX; });
@@ -873,11 +966,12 @@
       }
       // divider line before this segment (except the very first)
       if(i > 0){
-        svg.appendChild(line(x1, padTop - 18, x1, yNot, 'rgba(30,42,34,0.45)', '4,3'));
+        svg.appendChild(line(x1, padTop - 18, x1, yBottom, 'rgba(30,42,34,0.45)', '4,3'));
       }
-      var midX = (Math.max(x1,padL) + Math.min(x2,width-padR)) / 2;
-      var label = seg.phase.label.length > 16 ? seg.phase.label.slice(0,15)+'\u2026' : seg.phase.label;
-      var lbl = text(midX, padTop - 22, label.toUpperCase(), 9, 'middle', '#1E2A22', '600');
+      // label sits just to the right of the divider (or at the left edge for the first phase)
+      var labelX = (i === 0) ? padL : Math.min(x1 + 6, width - padR - 4);
+      var label = seg.phase.label.length > 18 ? seg.phase.label.slice(0,17)+'\u2026' : seg.phase.label;
+      var lbl = text(labelX, padTop - 22, label.toUpperCase(), 9, 'start', '#1E2A22', '600');
       lbl.setAttribute('letter-spacing','0.04em');
       svg.appendChild(lbl);
     });
@@ -886,15 +980,16 @@
     segments.forEach(function(seg){
       for(var k=0;k<seg.idxs.length-1;k++){
         var i1 = seg.idxs[k], i2 = seg.idxs[k+1];
-        var y1 = sessions[i1].met ? yMet : yNot;
-        var y2 = sessions[i2].met ? yMet : yNot;
-        svg.appendChild(line(xs[i1], y1, xs[i2], y2, 'rgba(30,42,34,0.55)'));
+        var v1 = isAmount ? Number(sessions[i1].raw) : sessions[i1].met;
+        var v2 = isAmount ? Number(sessions[i2].raw) : sessions[i2].met;
+        svg.appendChild(line(xs[i1], yFor(isAmount ? (isNaN(v1)?0:v1) : v1), xs[i2], yFor(isAmount ? (isNaN(v2)?0:v2) : v2), 'rgba(30,42,34,0.55)'));
       }
     });
 
     // markers
     sessions.forEach(function(s, i){
-      var cy = s.met ? yMet : yNot;
+      var val = isAmount ? Number(s.raw) : s.met;
+      var cy = yFor(isAmount ? (isNaN(val)?0:val) : val);
       var c = document.createElementNS(svgns,'circle');
       c.setAttribute('cx', xs[i]);
       c.setAttribute('cy', cy);
@@ -909,10 +1004,14 @@
       }
       svg.appendChild(c);
 
+      if(isAmount && !isNaN(Number(s.raw))){
+        svg.appendChild(text(xs[i], cy - 10, formatValue(Number(s.raw)), 8.5, 'middle', '#5B6B5F'));
+      }
+
       // date label every few points (avoid crowding)
       var showEvery = sessions.length > 20 ? 4 : (sessions.length > 10 ? 2 : 1);
       if(i % showEvery === 0 || i === sessions.length - 1){
-        svg.appendChild(text(xs[i], yNot + 18, formatShort(s.date), 8.5, 'middle', '#8B978E'));
+        svg.appendChild(text(xs[i], yBottom + 18, formatShort(s.date), 8.5, 'middle', '#8B978E'));
       }
     });
 
