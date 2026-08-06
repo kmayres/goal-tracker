@@ -758,7 +758,8 @@
     legend.innerHTML =
       '<span><span class="dot met"></span> Goal met</span>' +
       '<span><span class="dot notmet"></span> Not met</span>' +
-      '<span>&#8211; &#8211; vertical line = phase change</span>';
+      '<span>&#8211; &#8211; vertical line = phase change</span>' +
+      '<span style="color:rgba(47,90,158,0.9);">&#8212; solid blue line = phase mean level</span>';
     card.appendChild(legend);
 
     var goalsToShow = state.goals; // show archived too, greyed via label only
@@ -974,6 +975,23 @@
       var lbl = text(labelX, padTop - 22, label.toUpperCase(), 9, 'start', '#1E2A22', '600');
       lbl.setAttribute('letter-spacing','0.04em');
       svg.appendChild(lbl);
+    });
+
+    // phase mean-level lines (solid horizontal line = average for this phase)
+    segments.forEach(function(seg){
+      var x1 = xs[seg.idxs[0]] - stepX/2;
+      var x2 = xs[seg.idxs[seg.idxs.length-1]] + stepX/2;
+      var meanY;
+      if(isAmount){
+        var vals = seg.idxs.map(function(idx){ var n = Number(sessions[idx].raw); return isNaN(n) ? 0 : n; });
+        var avg = vals.reduce(function(a,b){ return a+b; }, 0) / vals.length;
+        meanY = yFor(avg);
+      } else {
+        var metCount = seg.idxs.filter(function(idx){ return sessions[idx].met; }).length;
+        var frac = metCount / seg.idxs.length;
+        meanY = yBottom - frac * (yBottom - yTop);
+      }
+      svg.appendChild(line(Math.max(x1, padL), meanY, Math.min(x2, width - padR), meanY, 'rgba(47,90,158,0.65)'));
     });
 
     // connecting lines within each phase segment
