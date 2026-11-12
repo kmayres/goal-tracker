@@ -197,7 +197,7 @@
       '<div class="eyebrow">Self-management · token economy</div>' +
       '<h1>Token Economy</h1>' +
       '<p class="sub">What the evening check-in has logged, how each week stacks up against its objective, and what has been earned for the bucket.</p>' +
-      '<nav class="links"><a href="./">DAILY DATA SHEET</a> &middot; <a href="#week">THIS WEEK</a> &middot; <a href="#graphs">GRAPHS</a></nav>');
+      '<nav class="links"><a href="./">DAILY DATA SHEET</a> &middot; <a href="#week">THIS WEEK</a> &middot; <a href="#sunday">SUNDAY</a> &middot; <a href="#graphs">GRAPHS</a></nav>');
     app.appendChild(head);
 
     if(!session){
@@ -208,7 +208,144 @@
     if(!data){ app.appendChild(el('div','status-msg','Loading your data…')); return; }
 
     app.appendChild(renderWeek());
+    app.appendChild(renderSunday());
     app.appendChild(renderGraphs());
+  }
+
+  // ---------- Sunday check-in: steps to approve + payouts ----------
+  var PROGRAM_START = '2026-11-12';
+  var busy = false, flash = null;
+
+  function isSunday(){ return new Date().getDay() === 0; }
+  function reviewWeek(){ var ws = weekStart(today()); return isSunday() ? ws : addDays(ws, -7); }
+  function weekTotal(g, ws){
+    var dv = dailyValues(g.id), vals = [];
+    Object.keys(dv).forEach(function(d){ if(d >= ws && d <= addDays(ws, 6)) vals.push(dv[d]); });
+    return aggregate(g, vals);
+  }
+  function weekEarnings(ws){
+    var days = 0, we = addDays(ws, 6);
+    data.goals.forEach(function(g){
+      var dv = dailyValues(g.id);
+      Object.keys(dv).forEach(function(d){ if(d >= ws && d <= we && d >= PROGRAM_START && earnsOn(g, dv[d])) days++; });
+    });
+    return { days: days, dollars: days * DOLLARS_PER_DAY };
+  }
+  function currentObjectiveRow(g){
+    var cur = null;
+    objectivesFor(g.id).forEach(function(o){ if(o.start_date <= today()) cur = o; });
+    return cur;
+  }
+  function scheduledObjective(g){
+    return objectivesFor(g.id).filter(function(o){ return o.start_date > today(); }).pop() || null;
+  }
+  function nextStep(g, obj){
+    if(g.step_size === null || obj === null) return null;
+    var s = Number(g.step_size), annual = g.annual_target !== null ? Number(g.annual_target) : null, v;
+    if(g.step_type === 'pct') v = Math.round(obj * (1 + s/100) * 10) / 10;
+    else v = g.direction === 'at_most' ? obj - s : obj + s;
+    if(annual !== null){
+      if(g.direction === 'at_most' && v < annual) v = annual;
+      if(g.direction === 'at_least' && v > annual) v = annual;
+    }
+    return v === obj ? null : v;
+  }
+  function proposals(){
+    var w1 = reviewWeek(), w0 = addDays(w1, -7), out = [];
+    data.goals.forEach(function(g){
+      if(g.role !== 'earning' || g.status !== 'active') return;
+      var curRow = currentObjectiveRow(g); if(!curRow) return;
+      var obj = Number(curRow.value);
+      var sched = scheduledObjective(g);
+      if(sched){ out.push({ g: g, obj: obj, scheduled: sched }); return; }
+      var objWeek = weekStart(curRow.start_date);
+      var weeks = [w0, w1].filter(function(w){ return w >= objWeek && addDays(w, 6) >= PROGRAM_START; });
+      var met = weeks.length === 2 && weeks.every(function(w){ return metPeriod(g, weekTotal(g, w), obj) === true; });
+      var next = met ? nextStep(g, obj) : null;
+      out.push({ g: g, obj: obj, next: next, streak: [w0, w1].map(function(w){ return metPeriod(g, weekTotal(g, w), obj); }) });
+    });
+    return out;
+  }
+
+  function renderSunday(){
+    var card = el('div','card'); card.id = 'sunday';
+    var rw = reviewWeek();
+    card.appendChild(el('h2', null, 'Sunday check-in' + (isSunday() ? ' · tonight' : '')));
+    card.appendChild(el('p','empty-note', 'Reviewing the week of ' + short(rw) + ' – ' + short(addDays(rw, 6)) + '. An objective is ready to step up after 2 weeks in a row at or past it; nothing changes until you approve.'));
+
+    // proposals
+    var props = proposals();
+    var ready = props.filter(function(p){ return p.next !== null && p.next !== undefined; });
+    var h1 = el('div','eyebrow', 'Objective steps'); h1.style.marginTop = '6px'; card.appendChild(h1);
+    if(!ready.length){
+      card.appendChild(el('div','empty-note', 'No objective is ready to step up yet.'));
+    }
+    props.forEach(function(p){
+      var g = p.g, sym = g.direction === 'at_most' ? '≤ ' : '';
+      if(p.scheduled){
+        card.appendChild(el('div','week-row', '<div class="name">' + esc(g.name) + '<span class="def">approved: ' + sym + fmt(Number(p.scheduled.value)) + ' ' + esc(g.unit) + ' from ' + short(p.scheduled.start_date) + '</span></div><div></div><div class="num">' + sym + fmt(p.obj) + ' → ' + sym + fmt(Number(p.scheduled.value)) + '</div><div class="tag met">set</div>'));
+        return;
+      }
+      if(p.next === null || p.next === undefined) return;
+      var row = el('div','week-row');
+      row.style.gridTemplateColumns = '1fr auto';
+      row.appendChild(el('div','name', esc(g.name) + '<span class="def">met 2 weeks running · step ' + sym + fmt(p.obj) + ' → ' + sym + fmt(p.next) + ' ' + esc(g.unit) + '/wk</span>'));
+      var btns = el('div', null); btns.style.display = 'flex'; btns.style.gap = '6px';
+      var ok = el('button','btn','Approve'); ok.disabled = busy;
+      ok.onclick = function(){ approveStep(g, p.next); };
+      var hold = el('button','btn','Hold'); hold.style.background = '#fff'; hold.style.color = 'var(--ink)';
+      hold.onclick = function(){ flash = 'Holding ' + g.name + ' at ' + sym + fmt(p.obj) + ' this week.'; render(); location.hash = 'sunday'; };
+      btns.appendChild(ok); btns.appendChild(hold); row.appendChild(btns);
+      card.appendChild(row);
+    });
+
+    // payouts
+    var h2 = el('div','eyebrow', 'Payouts to the Ally bucket'); h2.style.marginTop = '18px'; card.appendChild(h2);
+    var paid = {}; data.payouts.forEach(function(p){ paid[p.week_start] = p; });
+    var weeks = [], w = weekStart(PROGRAM_START);
+    while(w <= rw){ weeks.push(w); w = addDays(w, 7); }
+    var transferredTotal = data.payouts.filter(function(p){ return p.transferred; }).reduce(function(a, p){ return a + Number(p.dollars); }, 0);
+    if(!weeks.length){ card.appendChild(el('div','empty-note', 'Your first payout appears on Sunday, ' + short(addDays(weekStart(PROGRAM_START), 6)) + '.')); }
+    weeks.slice().reverse().forEach(function(ws){
+      var e = weekEarnings(ws), p = paid[ws];
+      var row = el('div','week-row');
+      row.style.gridTemplateColumns = '1fr 80px auto';
+      row.appendChild(el('div','name', 'Week of ' + short(ws) + '<span class="def">' + e.days + ' earning days</span>'));
+      row.appendChild(el('div','earned', '$' + e.dollars));
+      if(p && p.transferred){
+        row.appendChild(el('div','tag met', 'transferred'));
+      } else if(e.dollars > 0){
+        var b = el('button','btn','Mark transferred'); b.disabled = busy;
+        b.onclick = function(){ markTransferred(ws, e); };
+        row.appendChild(b);
+      } else {
+        row.appendChild(el('div','tag notmet', 'nothing earned'));
+      }
+      card.appendChild(row);
+    });
+    var tot = el('div','stat-row'); tot.style.marginTop = '14px';
+    tot.innerHTML = '<div class="stat"><div class="k">In the bucket (transferred)</div><div class="v met">$' + fmt(transferredTotal) + '</div></div>';
+    card.appendChild(tot);
+    if(flash){ var f = el('div','empty-note', esc(flash)); f.style.color = 'var(--met)'; card.appendChild(f); }
+    return card;
+  }
+
+  async function approveStep(g, value){
+    busy = true; render();
+    var start = addDays(weekStart(today()), 7);
+    var res = await sb.from('te_objectives').insert({ goal_id: g.id, value: value, start_date: start, note: 'approved at Sunday check-in' });
+    flash = res.error ? ('Couldn’t save: ' + res.error.message) : (g.name + ' objective set to ' + fmt(value) + ' starting ' + short(start) + '.');
+    await reload();
+  }
+  async function markTransferred(ws, e){
+    busy = true; render();
+    var res = await sb.from('te_payouts').upsert({ week_start: ws, earning_days: e.days, dollars: e.dollars, transferred: true, transferred_at: new Date().toISOString() }, { onConflict: 'week_start' });
+    flash = res.error ? ('Couldn’t save: ' + res.error.message) : ('$' + e.dollars + ' for the week of ' + short(ws) + ' marked as transferred.');
+    await reload();
+  }
+  async function reload(){
+    try{ data = await load(); }catch(err){ flash = 'Reload failed: ' + err.message; }
+    busy = false; render(); location.hash = 'sunday';
   }
 
   function renderWeek(){
